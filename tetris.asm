@@ -2,7 +2,7 @@
 # This file contains our implementation of Tetris.
 #
 # Student 1: Brittany Lansang, 100 825 5406
-# Student 2: Greg, Student Number (if applicable)
+# Student 2: Gregory Gismondi, 100 891 0467
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       2
 # - Unit height in pixels:      2
@@ -43,6 +43,8 @@ light_checkerboard:
 # The colour of the walls and floor
 wall_colour: 
     .word 0x3b3b3b
+i_orientation:
+    .word 0
     
 
 ##############################################################################
@@ -179,7 +181,7 @@ inner_top_dg:
 add $t3, $t1, $t2           # store the total offset of the starting pixel (relative to $t0)
 add $t3, $t0, $t3           # calculate the location of the starting pixel ($t0 + offset)
 
-lw $t4, 0($t7)              # load into $t4 = darker gray for the walls
+lw $t4, 0($t7)              
 
 sw $t4, 0($t3)              # paint the current unit on the first row yellow
 addi $t1, $t1, 4            # move horizontal offset to the right by one pixel
@@ -192,6 +194,8 @@ beq $t2, $t6, outer_end_dg  # on last line, break out of the outer loop
 j outer_top_dg              # jump to the top of the outer loop
 outer_end_dg:
 jr $ra                      # return to calling program
+
+# Code taken from lecture
 
 draw_rectangle:
 sll $t2, $a1, 7         # convert vertical offset to pixels (by multiplying $a1 by 128, equivalent to logical left shifts)
@@ -208,7 +212,7 @@ add $t3, $t1, $t2           # store the total offset of the starting pixel (rela
 add $t3, $t0, $t3           # calculate the location of the starting pixel ($t0 + offset)
 
 la $t7, wall_colour     # fetch wall_colour label address
-lw $t4, 0($t7)          # load into $t4 = darker gray for the walls
+lw $t4, 0($t7)          # load wall colour and store into $t4
 
 sw $t4, 0($t3)              # paint the current unit on the first row yellow
 addi $t1, $t1, 4            # move horizontal offset to the right by one pixel
@@ -222,6 +226,7 @@ j outer_top                 # jump to the top of the outer loop
 outer_end:
 jr $ra                      # return to calling program
 
+# Similar Code to draw_rectangle
 draw_tetromino:
 	sll $t2, $a1, 7         # convert vertical offset to pixels (by multiplying $a1 by 128, equivalent to logical left shifts)
 	sll $t6, $a3, 7         # convert height of rectangle from pixels to rows of bytes (by multiplying $a3 by 128)
@@ -235,11 +240,11 @@ draw_tetromino:
 	add $t3, $t1, $t2           # store the total offset of the starting pixel (relative to $t0)
 	add $t3, $t0, $t3           # calculate the location of the starting pixel ($t0 + offset)
 	
-	la $t7, i_colour  # Load the piece_I_colour label's address into $t7
-	lw $t4, 0($t7)  # Fetch colour of the piece and store in $t4
+	la $t7, i_colour           # load i_colour label's address into $t7
+	lw $t4, 0($t7)             # load wall colour and store into $t4t4
 
-    sw $t4, 0($t3)              # paint the current unit on the first row the specified colour in $t4
-	addi $t1, $t1, 4            # move horizontal offset to the right by one pixel
+    sw $t4, 0($t3)                      # paint the current unit on the first row the specified colour in $t4
+	addi $t1, $t1, 4                       # move horizontal offset to the right by one pixel
 	beq $t1, $t5, inner_tetromino_end     # break out of the line-drawing loop
 	j inner_tetromino_top                 # jump to the start of the inner loop
 	inner_tetromino_end:
@@ -251,12 +256,360 @@ draw_tetromino:
 	jr $ra
 
 game_loop:
-	# 1a. Check if key has been pressed
-    # 1b. Check which key has been pressed
-    # 2a. Check for collisions
-	# 2b. Update locations (paddle, ball)
-	# 3. Draw the screen
-	# 4. Sleep
+##############################################################################
+# MILESTONE 2
+##############################################################################
 
+    # 1a. Check if key has been pressed
+    lw $t1, ADDR_KBRD               # $t0 = base address for keyboard
+    lw $t2, 0($t1)                  # load first word from keyboard
+    beq $t2, 1, keyboard_input      # key is pressed
+    beq $t2, 0, end_game_loop       # no key pressed, loop back and wait for the next keyboard input
+      
+    keyboard_input:
+        lw $t1, ADDR_KBRD               # load the keyboard_address into $t1
+        lw $t2, 4($t1)                  # load second word from keyboard
+        beq $t2, 0x71, respond_to_Q     # check if the key q was pressed
+        beq $t2, 0x77, respond_to_W     # check if the key w was pressed
+        beq $t2, 0x61, respond_to_A     # check if the key a was pressed
+        beq $t2, 0x73, respond_to_S     # check if the key s was pressed
+        beq $t2, 0x64, respond_to_D     # check if the key d was pressed
+        
+    # 2a. Check for collisions
+    # 2b. Update locations (paddle, ball)
+    # 3. Draw the screen
+    # 4. Sleep
+    
     #5. Go back to 1
-    b game_loop
+    end_game_loop:
+    b game_loop 
+    
+respond_to_Q:
+	li $v0, 10                      # Quit gracefully
+	syscall
+	
+# Rotates tetromino
+respond_to_W: 
+	la $t7, i_orientation  # load orientation address into $t7
+	lw $t4, 0($t7)  # load orientation of i and store in $t4
+	beq $t4, 0, i_rotate_90 # rotate 90 degrees if i in default orientation 
+	beq $t4, 90, i_rotate_180 # rotate 180 degrees from default orientation if i has been rotated 90 degrees
+	beq $t4, 180, i_rotate_270 # rotate 270 degrees from default orientation if i has been rotated 180 degrees 
+	beq $t4, 270, i_rotate_0 # rotate to default orientation if i has been rotated 270 degrees
+
+
+i_rotate_90:
+	lw $t0, ADDR_DSPL # reset display address
+	
+    # redraw grid (same arguments passed from initialization)
+    # draw dark part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 0
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_dark_grid      # call the rectangle-drawing function
+    
+    # draw light part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 0
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_light_grid     # call the rectangle-drawing function
+
+	# draw rotated tetromino
+	lw $t0, ADDR_DSPL # reset display address
+	la $t7, i_rotate_90  # load address into $t7
+	lw $t4, 0($t7)  # load orientation and store into $t4
+	la $t7, current_i_x  # load current address for x coordinate into $t7
+	lw $a0, 0($t7)  # load current orientation and store
+	addi $a0, $a0, -2   # starting x coordinate shifted 2 units left
+	sw $a0, 0($t7) # update new x coordinate
+	
+	la $t7, current_i_y  # load current address for y coordinate into $t7
+	lw $a1, 0($t7)  # load current orientation and store
+	addi $a1, $a1, 2   # starting y coordinate shifted 2 units left
+	sw $a1, 0($t7)     # update new x coordinate
+	
+	addi $a2, $zero, 4     # set length of line to 4
+	addi $a3, $zero, 1    # set height of line to 1
+	
+	# update the tetromino's orientation value in .data 
+	la $t7, i_orientation  # load address into $t7
+	lw $t4, 0($t7)  
+	addi $t4, $t4, 90 # rotate 90 degrees
+	sw $t4, 0($t7) # Update new orientation
+	
+	jal draw_tetromino     # redraw rotated tetromino
+	j game_loop
+
+
+i_rotate_180:
+	lw $t0, ADDR_DSPL # reset display address
+	
+    # redraw grid (same arguments passed from initialization)
+    # draw dark part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 0
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_dark_grid      # call the rectangle-drawing function
+    
+    # draw light part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 0
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_light_grid     # call the rectangle-drawing function
+	
+	# draw rotated tetromino
+	# repeat code from orientation 0
+	lw $t0, ADDR_DSPL # reset display address
+	la $t7, i_rotate_180  # load address into $t7
+	lw $t4, 0($t7)  # load orientation and store into $t4
+	la $t7, current_i_x  # load current address for x coordinate into $t7
+	lw $a0, 0($t7)  # load current orientation and store
+	addi $a0, $a0, 1   # starting x coordinate shifted 1 right 
+	sw $a0, 0($t7) # update
+	la $t7, current_i_y  
+	lw $a1, 0($t7)  
+	addi $a1, $a1, -2   
+	sw $a1, 0($t7) 
+	
+	addi $a2, $zero, 1     
+	addi $a3, $zero, 4    
+	
+	la $t7, i_orientation  
+	lw $t4, 0($t7)  
+	addi $t4, $t4, 90 
+	sw $t4, 0($t7) 
+	
+	jal draw_tetromino     
+	j game_loop
+
+
+i_rotate_270:
+	lw $t0, ADDR_DSPL # reset display address
+	
+    # redraw grid (same arguments passed from initialization)
+    # draw dark part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 0
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_dark_grid      # call the rectangle-drawing function
+    
+    # draw light part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 0
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_light_grid     # call the rectangle-drawing function
+	
+	# draw rotated piece
+	lw $t0, ADDR_DSPL # reset display address
+	la $t7, i_rotate_270  
+	lw $t4, 0($t7)  
+	
+	la $t7, current_i_x  
+	lw $a0, 0($t7)  
+	addi $a0, $a0, -1   
+	sw $a0, 0($t7) 
+	
+	la $t7, current_i_y  
+	lw $a1, 0($t7)  
+	addi $a1, $a1, 1   
+	sw $a1, 0($t7) 
+	
+	addi $a2, $zero, 4     
+	addi $a3, $zero, 1    
+	
+
+	la $t7, i_orientation  
+	lw $t4, 0($t7)  
+	addi $t4, $t4, 90 
+	sw $t4, 0($t7) 
+	
+	jal draw_tetromino     
+
+	j game_loop
+
+
+i_rotate_0:
+
+	lw $t0, ADDR_DSPL # reset display address
+	
+    # redraw grid (same arguments passed from initialization)
+    # draw dark part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 0
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_dark_grid      # call the rectangle-drawing function
+    
+    # draw light part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 0
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_light_grid     # call the rectangle-drawing 
+	
+	#draw rotated tetromino
+	lw $t0, ADDR_DSPL 
+	la $t7, i_rotate_0  
+	lw $t4, 0($t7)  
+	
+	la $t7, current_i_x  
+	lw $a0, 0($t7)  
+	addi $a0, $a0, 2
+	sw $a0, 0($t7) 
+	
+	la $t7, current_i_y  
+	lw $a1, 0($t7)  
+	addi $a1, $a1, -1   
+	sw $a1, 0($t7) 
+	
+	addi $a2, $zero, 1     
+	addi $a3, $zero, 4    
+	
+	la $t7, i_orientation  
+	lw $t4, 0($t7)  
+	add $t4, $zero, $zero 
+	sw $t4, 0($t7) 
+	
+	jal draw_tetromino     
+
+	j game_loop
+	
+respond_to_A:
+    lw $t0, ADDR_DSPL # reset display address
+    
+    # redraw grid (same arguments passed from initialization)
+    # draw dark part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 0
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_dark_grid      # call the rectangle-drawing function
+    
+    # draw light part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 0
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_light_grid     # call the rectangle-drawing function
+    
+    la $t7, current_i_x  
+    lw $a0, 0($t7)  
+    addi $a0, $a0, -1   
+    sw $a0, 0($t7) 
+    
+    la $t7, current_i_y  
+    lw $a1, 0($t7)  
+
+    la $t7, i_orientation 
+    lw $t4, 0($t7)              
+    
+    beq $t4, 0, draw_i_vertical
+    beq $t4, 180, draw_i_vertical
+    beq $t4, 90, draw_i_horizontal
+    beq $t4, 270, draw_i_horizontal     
+    draw_i_vertical:
+        addi $a2, $zero, 1      # set length of line to 1
+        addi $a3, $zero, 4      # set height of line to 4
+        jal draw_tetromino
+        j game_loop
+    draw_i_horizontal:
+        addi $a2, $zero, 4      # set length of line to 4
+        addi $a3, $zero, 1      # set height of line to 1
+        jal draw_tetromino     
+        j game_loop
+
+respond_to_S:
+    lw $t0, ADDR_DSPL # reset display address
+    # redraw grid (same arguments passed from initialization)
+    
+    # draw dark part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 1
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_dark_grid      # call the rectangle-drawing function
+    
+    # draw light part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 0
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_light_grid     # call the rectangle-drawing function
+    
+    la $t7, current_i_x  # load the current x coordinate address into $t7
+    lw $a0, 0($t7)  # load x position and store in $a0
+    la $t7, current_i_y  # load the current y coordinate address into $t7
+    lw $a1, 0($t7)  # load y position and store in $a0
+    
+    # S key, tetromino moves 1 unit down 
+    addi $a1, $a1, 1   # shift y coordinate down by 1
+    sw $a1, 0($t7) # store new y coordinate in memory
+    
+    la $t7, i_orientation # load the current orientation address into $t7
+    lw $t4, 0($t7)              # load orientation and store in $t4
+    
+    beq $t4, 0, draw_i_vertical
+    beq $t4, 180, draw_i_vertical
+    beq $t4, 90, draw_i_horizontal
+    beq $t4, 270, draw_i_horizontal
+    draw_i_vertical:
+        addi $a2, $zero, 1     # set length of line to 1
+        addi $a3, $zero, 4    # set height of line to 4
+        jal draw_tetromino
+        j game_loop  
+    draw_i_horizontal:
+        addi $a2, $zero, 4     # set length of line to 4
+        addi $a3, $zero, 1    # set height of line to 1
+        jal draw_tetromino     
+        j game_loop
+
+	
+respond_to_D:
+    
+    lw $t0, ADDR_DSPL # reset display address
+    # redraw grid
+    # draw dark part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 0
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_dark_grid      # call the rectangle-drawing function
+    
+    # draw light part of grid
+    addi $a0, $zero, 1      # set x coordinate of line to 0
+    addi $a1, $zero, 0      # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    jal draw_light_grid     # call the rectangle-drawing tetromino
+    
+    # draw rotated tetromino
+    la $t7, current_i_x  
+    lw $a0, 0($t7)  
+    addi $a0, $a0, 1   
+    sw $a0, 0($t7) 
+    la $t7, current_i_y  
+    lw $a1, 0($t7)  
+    la $t7, i_orientation 
+    lw $t4, 0($t7)              
+    
+    beq $t4, 0, draw_i_vertical
+    beq $t4, 180, draw_i_vertical
+    beq $t4, 90, draw_i_horizontal
+    beq $t4, 270, draw_i_horizontal
+    draw_i_vertical:
+        addi $a2, $zero, 1     # set length of line to 1
+        addi $a3, $zero, 4    # set height of line to 4
+        jal draw_tetromino
+        j game_loop
+    draw_i_horizontal:
+        addi $a2, $zero, 4     # set length of line to 4
+        addi $a3, $zero, 1    # set height of line to 1
+        jal draw_tetromino     
+        j game_loop
+
