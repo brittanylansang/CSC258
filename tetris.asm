@@ -30,11 +30,11 @@ wall_colour:
     .word 0xFFFFFF
 grid_colour:
     .word 0x3b3b3b
-current_i_x: 
-    .word 4
-# The current y coordinate for the I 
-current_i_y: 
-    .word 0
+# current_i_x: 
+    # .word 4
+# # The current y coordinate for the I 
+# current_i_y: 
+    # .word 0
 # The colour of the I piece     
 i_colour:   
     .word 0x00FFFF
@@ -252,10 +252,14 @@ draw_vertical_line:
 draw_i:
     la $t1, current_orient      # fetch address
     lw $t2, 0($t1)              # load the current x value into the argument
-    beq $t2, 90, horizontal_i   # check the orientation if it's 90, then horizontal piece
-    beq $t2, 270, horizontal_i  # check the orientation if it's 270, then horizontal piece
+    beq $t2, 90, draw_horizontal_i   # check the orientation if it's 90, then horizontal piece
+    beq $t2, 270, draw_horizontal_i  # check the orientation if it's 270, then horizontal piece
     
     # otherwise, i is default vertical piece
+    la $t1, current_piece_x # fetch address
+    lw $a0, 0($t1)          # load the current x value into the argument
+    la $t1, current_piece_y # fetch address
+    lw $a1, 0($t1)          # load the current y value into the argument THIS AND ABOVE COPIED
     addi $a2, $zero, 4      # setting the height of the line
     la $t1, i_colour
     lw $a3, 0($t1)
@@ -263,7 +267,7 @@ draw_i:
     finish_drawing:
     j check_key
     
-    horizontal_i:
+    draw_horizontal_i:
     la $t1, current_piece_x # fetch address
     lw $a0, 0($t1)          # load the current x value into the argument
     la $t1, current_piece_y # fetch address
@@ -390,7 +394,7 @@ game_loop:
     
     li $v0, 42
     li $a0, 0
-    li $a1, 7 # 7
+    li $a1, 1 # 7
     syscall
     
     beq $a0, 0, i_piece
@@ -540,10 +544,10 @@ game_loop:
         lw $t1, ADDR_KBRD               # load the keyboard_address into $t1
         lw $t2, 4($t1)                  # load second word from keyboard
         # beq $t2, 0x71, respond_to_Q     # check if the key q was pressed
-        # beq $t2, 0x77, respond_to_W     # check if the key w was pressed
-        # beq $t2, 0x61, respond_to_A     # check if the key a was pressed
+        beq $t2, 0x77, respond_to_W     # check if the key w was pressed
+        beq $t2, 0x61, respond_to_A     # check if the key a was pressed
         beq $t2, 0x73, respond_to_S     # check if the key s was pressed
-        # beq $t2, 0x64, respond_to_D     # check if the key d was pressed
+        beq $t2, 0x64, respond_to_D     # check if the key d was pressed
         
         addi $t5, $t5, 1
         
@@ -555,6 +559,311 @@ game_loop:
     #5. Go back to 1
     end_game_loop: 
     b check_key 
+    
+    respond_to_W:
+    lw $t0, ADDR_DSPL # reset display address
+    addi $a0, $zero, 1     # set x coordinate of line to 0
+    addi $a1, $zero, 0     # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    
+    jal draw_grid           # draw grid, then after it will return back here
+    
+    lw $ra, 0($sp)          # pop $ra
+    
+    la $t1, current_piece   # fetch address label
+    lw $t2, 0($t1)          # fetch value to see which piece it is
+    
+    beq $t2, 0, check_i_W
+    beq $t2, 1, check_o
+    beq $t2, 2, check_s
+    beq $t2, 3, check_z
+    beq $t2, 4 check_l
+    beq $t2, 5, check_j
+    beq $t2, 6, check_t
+    
+    check_i_W:
+    la $t7, current_piece_y     # fetch the address label
+    lw $a1, 0($t7)          # fetch the value of y coordinate
+    la $t7, current_piece_x     # fetch address label
+    lw $a0, 0($t7)          # fetch value of x coordinate
+    
+    la $t2, current_orient   # fetch address label
+    lw $t3, 0($t2)          # fetch value of the orientation
+    
+    beq $t3, 0, i_rotate_90 # rotate 90 degrees if i in default orientation 
+	beq $t3, 90, i_rotate_180 # rotate 180 degrees from default orientation if i has been rotated 90 degrees
+	beq $t3, 180, i_rotate_270 # rotate 270 degrees from default orientation if i has been rotated 180 degrees 
+	beq $t3, 270, i_rotate_0 # rotate to default orientation if i has been rotated 270 degrees
+    
+    i_rotate_90:
+    la $t6, i_rotate_90  # load address into $t7
+    
+    # check the pixel's where it will rotate too
+    
+    #check right most
+    addi $a0, $a0, 1
+    addi $a3, $zero, 1 # the height
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)          # pop $
+    
+    # one left
+    addi $a0, $a0, -1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)          # pop $
+    
+    # one left
+    addi $a0, $a0, -1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)          # pop $
+    
+    # one left
+    addi $a0, $a0, -1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)          # pop $
+
+    
+    la $t6, current_orient  
+	lw $t4, 0($t6)  
+	addi $t4, $t4, 90 
+	sw $t4, 0($t6) # load in the new orientation
+	addi $a1, $a1, 2 # down 2
+    
+    j rotation 
+    
+    i_rotate_180:
+    la $t6, i_rotate_180  # load address into $t7
+    
+    # check if there is a pixel on the bottom
+    addi $a0, $a0, 1 # one right
+    addi $a3, $zero, 0
+    addi $sp, $sp, -4       # make room in stack
+    addi $a1, $a1, 1
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)          # pop $
+    
+    # check the second pixel to the left
+    
+    # check the pixel to the left of the current
+    
+    la $t6, current_orient  
+	lw $t4, 0($t6)  
+	addi $t4, $t4, 90 
+	sw $t4, 0($t6) # load in the new orientation
+	addi $a1, $a1, -3
+    
+    j rotation 
+    
+    i_rotate_270:
+    la $t6, i_rotate_180  # load address into $t7
+    
+    # check the pixel's where it will rotate too
+    
+    #check right most
+    addi $a0, $a0, 2
+    addi $a3, $zero, 1 # the height
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)          # pop $
+    
+    # one left
+    addi $a0, $a0, -1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)          # pop $
+    
+    # one left
+    addi $a0, $a0, -1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)          # pop $
+    
+    # one left
+    addi $a0, $a0, -1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)          # pop $
+    
+
+    
+    la $t6, current_orient  
+	lw $t4, 0($t6)  
+	addi $t4, $t4, 90 
+	sw $t4, 0($t6) # load in the new orientation
+    addi $a1, $a1, 1 # down 1
+    
+    j rotation 
+    
+    i_rotate_0:
+    # check if theres 3 pixels free on the bottom
+    la $t6, i_rotate_0  # load address into $t7
+    
+    # check if there is a pixel on the bottom
+    addi $a0, $a0, 2 # one right
+    addi $a3, $zero, 0
+    addi $a1, $a1, 1 # add one to check
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)          # pop $
+    
+    addi $a3, $a3, 0
+    addi $a1, $a1, 1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)  
+    
+    # check the second pixel to the left
+    
+    # check the pixel to the left of the current
+    
+    la $t6, current_orient  
+	lw $t4, 0($t6)  
+	add $t4, $zero, $zero 
+	sw $t4, 0($t6) # load in the new orientation
+	addi $a1, $a1, -3
+    
+    rotation:
+    la $t7, current_piece_x
+    sw $a0, 0($t7) # update
+    la $t7, current_piece_y
+	sw $a1, 0($t7) 
+	la $t8, current_piece
+	lw $t8, 0($t8)
+
+	beq  $t8, 0, draw_i
+    beq $t8, 1, draw_o
+    beq $t8, 2, draw_s
+    beq $t8, 3, draw_z
+    beq $t8, 4, draw_l
+    beq $t8, 5, draw_j
+    beq $t8, 6, draw_t
+    j keyboard_input
+    
+    
+    
+	
+	
+	
+    
+    respond_to_A:
+
+    lw $t0, ADDR_DSPL # reset display address
+    # redraw grid (same arguments passed from initialization)
+    
+    addi $a0, $zero, 1     # set x coordinate of line to 0
+    addi $a1, $zero, 0     # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    
+    jal draw_grid           # draw grid, then after it will return back here
+    
+    lw $ra, 0($sp)          # pop $ra
+    
+    la $t7, current_piece_y     # fetch the address label
+    lw $a1, 0($t7)          # fetch the value of y coordinate
+    la $t7, current_piece_x     # fetch address label
+    lw $a0, 0($t7)          # fetch value of x coordinate
+    
+    la $t8, current_orient   # fetch address label
+    lw $t9, 0($t8)          # fetch value of the orientation
+    
+    la $t8, current_piece   # fetch address label
+    lw $t8, 0($t8)          # fetch value to see which piece it is
+    
+    beq  $t8, 0, check_i_A
+    beq $t8, 1, check_o
+    beq $t8, 2, check_s
+    beq $t8, 3, check_z
+    beq $t8, 4 check_l
+    beq $t8, 5, check_j
+    beq $t8, 6, check_t
+    
+    check_i_A:
+    addi $a0, $a0, -1  
+    
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+    
+    lw $ra, 0($sp)          # pop $ra
+    
+    # check for all the height
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    addi $a1, $a1, 1
+    jal check_pixel_horizontal
+    
+    lw $ra, 0($sp)  
+    
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    addi $a1, $a1, 1
+    jal check_pixel_horizontal
+    
+    lw $ra, 0($sp)
+    
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    addi $a1, $a1, 1
+    jal check_pixel_horizontal
+    
+    lw $ra, 0($sp)
+    
+    j shift_horizontal
+    
+    shift_horizontal:
+    sw $a0, 0($t7) 
+    la $t3, current_piece_y  # updating the new location
+    lw $a1, 0($t3)  
+    la $t8, current_piece 
+    lw $t8, 0($t8)
+    
+    # # sw $a0, 0($t7) # store new x coordinate in memory
+    # # # la $t3, current_piece_y  # updating the new location
+    # # # lw $a1, 0($t3)  
+    # la $t8, current_piece
+    # lw $t8, 0($t8)
+    beq  $t8, 0, draw_i
+    beq $t8, 1, draw_o
+    beq $t8, 2, draw_s
+    beq $t8, 3, draw_z
+    beq $t8, 4, draw_l
+    beq $t8, 5, draw_j
+    beq $t8, 6, draw_t
+    j keyboard_input
+    
     
     respond_to_S: # NEED TO BE FIXED I THINK IT HAS TO DO WITH THE OFFSET
     lw $t0, ADDR_DSPL # reset display address
@@ -572,12 +881,12 @@ game_loop:
     
     lw $ra, 0($sp)          # pop $ra
     
-    la $t7, current_i_x     # fetch address label
+    la $t7, current_piece_x     # fetch address label
     lw $a0, 0($t7)          # fetch value of x coordinate
-    la $t7, current_i_y     # fetch the address label
+    la $t7, current_piece_y     # fetch the address label
     lw $a1, 0($t7)          # fetch the value of y coordinate
     
-    la $t8, i_orientation   # fetch address label
+    la $t8, current_orient   # fetch address label
     lw $t9, 0($t8)          # fetch value of the orientation
     
     la $t8, current_piece   # fetch address label
@@ -596,14 +905,14 @@ game_loop:
     # $t9 stores the current orientation
     addi $a1, $a1, 1        
     beq $t9, 0, vertical_i          # cond1: branch if the current orientation is vertical
-    # bne $t9, 180, horizontal_i      # cond2: branch if the current orientation is horizontal 
+    bne $t9, 180, horizontal_i      # cond2: branch if the current orientation is horizontal 
     
     # pass in bottom most x, y
     # x stays the same
     # change 
     # y stays the same
     vertical_i:
-    addi $a3, $zero, 4
+    addi $a3, $zero, 3 # height
     addi $sp, $sp, -4       # make room in stack
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_down
@@ -614,6 +923,17 @@ game_loop:
     # finish checking and is fine
     j shift_down
     
+    horizontal_i:
+    addi $a3, $zero, 0 # height
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)          # pop $ra
+
+     
+    # finish checking and is fine
+    j shift_down
     
     
     check_o:
@@ -711,8 +1031,6 @@ game_loop:
     j shift_down
     
     
-    
-    
     check_l:
     addi $a1, $a1, 1        
     beq $t9, 0, vertical_l          # cond1: branch if the current orientation is vertical
@@ -736,19 +1054,24 @@ game_loop:
     
     
     j shift_down
-
-    # horizontal_l: # HAVENT DONE
-    # sll $t2, $a1, 7         # multiply by 128 to get the offset
-    # add $t3, $t2, $t0       # add the top left corner plus the offset to get the address of the new shifted pixel
-    # sll $t2, $a0, 2         # multiply by 4 to get the offset
-    # add $t3, $t3, $t2       # the total offset
-    # lw $t4, 0($t3)          # get the colour of the pixel at that location
     
-    # la $t5, grid_colour     # fetch the address label
-    # lw $t6, 0($t5)          # fetch the value, the black colour of the pixel
+    # horizontal_i:
+    # # checks pixel directly under x
+    # addi $a3, $zero, 1 # height
+    # addi $sp, $sp, -4       # make room in stack
+    # sw $ra, 0($sp)          # push $ra
+    # jal check_pixel_down
     
-    # bne $t6, $t4, stay_current_location # if the pixel is not black, stay at current location
-    # # otherwise shift down
+    # lw $ra, 0($sp)          # pop $ra
+    
+    # addi $a0, $a0, 1  # this checks the pixel to the right now
+    # addi $sp, $sp, -4       # make room in stack
+    # sw $ra, 0($sp)          # push $ra
+    # jal check_pixel_down
+    
+    # lw $ra, 0($sp)          # pop $ra
+    
+    
     # j shift_down
     
     check_j:
@@ -804,20 +1127,6 @@ game_loop:
     
     J shift_down
     
-    # horizontal_j: # CHANGE
-    # sll $t2, $a1, 7         # multiply by 128 to get the offset
-    # add $t3, $t2, $t0       # add the top left corner plus the offset to get the address of the new shifted pixel
-    # sll $t2, $a0, 2         # multiply by 4 to get the offset
-    # add $t3, $t3, $t2       # the total offset
-    # lw $t4, 0($t3)          # get the colour of the pixel at that location
-    
-    # la $t5, grid_colour     # fetch the address label
-    # lw $t6, 0($t5)          # fetch the value, the black colour of the pixel
-    
-    # bne $t6, $t4, stay_current_location # if the pixel is not black, stay at current location
-    # # otherwise shift down
-    # j shift_down
-    
     shift_down:
     sw $a1, 0($t7) # store new y coordinate in memory 
     la $t3, current_piece_x
@@ -834,6 +1143,11 @@ game_loop:
     j keyboard_input
     
     stay_current_location:
+    # sw $a1, 0($t7)
+    la $t8, current_piece_x
+    lw $a0, 0($t8)
+    la $t8, current_piece_y
+    lw $a1, 0($t8)
     la $t8, current_piece
     lw $t8, 0($t8)
 
@@ -851,6 +1165,98 @@ game_loop:
     
     lw $ra, 0($sp)          # pop $ra
     j game_loop
+    
+    respond_to_D:
+    lw $t0, ADDR_DSPL # reset display address
+    # redraw grid (same arguments passed from initialization)
+    
+    addi $a0, $zero, 1     # set x coordinate of line to 0
+    addi $a1, $zero, 0     # set y coordinate of line to 31
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 31     # set height of line to 1
+    
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    
+    jal draw_grid           # draw grid, then after it will return back here
+    
+    lw $ra, 0($sp)          # pop $ra
+    
+    la $t7, current_piece_y     # fetch the address label
+    lw $a1, 0($t7)          # fetch the value of y coordinate
+    la $t7, current_piece_x     # fetch address label
+    lw $a0, 0($t7)          # fetch value of x coordinate
+    
+    la $t8, current_orient   # fetch address label
+    lw $t9, 0($t8)          # fetch value of the orientation
+    
+    la $t8, current_piece   # fetch address label
+    lw $t8, 0($t8)          # fetch value to see which piece it is
+    
+    beq  $t8, 0, check_i_D
+    beq $t8, 1, check_o
+    beq $t8, 2, check_s
+    beq $t8, 3, check_z
+    beq $t8, 4 check_l
+    beq $t8, 5, check_j
+    beq $t8, 6, check_t
+    
+    check_i_D:
+    
+    addi $a1, $a1, 1        
+    beq $t9, 0, vertical_i_d          # cond1: branch if the current orientation is vertical
+    bne $t9, 180, horizontal_i_d      # cond2: branch if the current orientation is horizontal 
+    
+    # pass in bottom most x, y
+    # x stays the same
+    # change 
+    # y stays the same
+    vertical_i_d:
+    # check all pixels to the right
+    addi $a0, $a0, 1  
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+    
+    lw $ra, 0($sp)          # pop $ra
+    
+    # check for all the height
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    addi $a1, $a1, 1
+    jal check_pixel_horizontal
+    
+    lw $ra, 0($sp)  
+    
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    addi $a1, $a1, 1
+    jal check_pixel_horizontal
+    
+    lw $ra, 0($sp)
+    
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    addi $a1, $a1, 1
+    jal check_pixel_horizontal
+    
+    lw $ra, 0($sp)
+    
+    j shift_horizontal
+    
+    horizontal_i_d:
+    
+    addi $a0, $a0, 1 
+    addi, $a0, $a0, 3 # for the length
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+    
+    lw $ra, 0($sp)          # pop $ra
+
+    addi $a0, $a0, -3
+    # finish checking and is fine
+    j shift_horizontal
     
 # - $a0 - x coordinate 
 # - $a1 - y coordinate  
@@ -870,4 +1276,17 @@ game_loop:
     
     jr $ra
     
+# - $a0 - x coordinate 
+# - $a1 - y coordinate  
+# Checks whether the colour to left or right, by adjusting register, of the given given pixel coordinate is black or not for 
+check_pixel_horizontal:
+    sll $t2, $a0, 2         # multiply by 4 to get the offset
+    add $t3, $t2, $t0       # add the top left corner plus the offset to get the address of the new shifted pixel
+    lw $t4, 0($t3)          # get the colour of the pixel at that location
+    
+    la $t5, grid_colour     # fetch the address label
+    lw $t6, 0($t5)          # fetch the value, the black colour of the pixel
+    
+    bne $t6, $t4, stay_current_location # if the pixel is not black, do not shift the right
+    jr $ra
  
