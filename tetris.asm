@@ -50,10 +50,6 @@ j_colour:
     .word 0x00FF00FF
 t_colour:
     .word 0x00800080
-i_orientation:
-    .word 0
-i_length:
-    .word 1
 i_piece:
     .word 0
 o_piece:
@@ -294,6 +290,15 @@ draw_o:
     # jr $ra
     
 draw_s:
+    la $t1, current_orient      # fetch address
+    lw $t2, 0($t1)              # load the current x value into the argument
+    beq $t2, 90, draw_vertical_s   # check the orientation if it's 90, then horizontal piece
+    beq $t2, 270, draw_vertical_s  # check the orientation if it's 270, then horizontal piece
+    
+    la $t1, current_piece_x # fetch address
+    lw $a0, 0($t1)          # load the current x value into the argument
+    la $t1, current_piece_y # fetch address
+    lw $a1, 0($t1)    
     addi $a2, $zero, 2 # the length
     la $t1, s_colour    # the colour
     lw $a3, 0($t1)
@@ -307,7 +312,25 @@ draw_s:
     la $t1, s_colour
     lw $a3, 0($t1)
     jal draw_horizontal_line
+    j check_key     # finish drawing check any input
     
+    draw_vertical_s:
+    la $t1, current_piece_x # fetch address
+    lw $a0, 0($t1)          # load the current x value into the argument
+    la $t1, current_piece_y # fetch address
+    lw $a1, 0($t1)    
+    addi $a2, $zero, 2 #length
+    la $t1, s_colour    # the colour
+    lw $a3, 0($t1)
+    jal draw_vertical_line
+    
+    # need to change x and u
+    addi $a1, $a1, 1  # change the y
+    addi $a0, $a0, 1 # change the x
+    addi $a2, $zero, 2  # the length of the horizontal
+    la $t1, s_colour
+    lw $a3, 0($t1)
+    jal draw_vertical_line
     j check_key     # finish drawing check any input
     
 draw_z:
@@ -394,7 +417,7 @@ game_loop:
     
     li $v0, 42
     li $a0, 0
-    li $a1, 1 # 7
+    li $a1, 3 # 7
     syscall
     
     beq $a0, 0, i_piece
@@ -578,8 +601,8 @@ game_loop:
     lw $t2, 0($t1)          # fetch value to see which piece it is
     
     beq $t2, 0, check_i_W
-    beq $t2, 1, check_o
-    beq $t2, 2, check_s
+    beq $t2, 1, check_o_W
+    beq $t2, 2, check_S_W
     beq $t2, 3, check_z
     beq $t2, 4 check_l
     beq $t2, 5, check_j
@@ -671,6 +694,7 @@ game_loop:
     
     j rotation 
     
+    
     i_rotate_270:
     la $t6, i_rotate_180  # load address into $t7
     
@@ -750,6 +774,137 @@ game_loop:
 	add $t4, $zero, $zero 
 	sw $t4, 0($t6) # load in the new orientation
 	addi $a1, $a1, -3
+	
+	j rotation
+	
+	check_o_W:
+	j stay_current_location
+	
+	check_S_W:
+	la $t7, current_piece_y     # fetch the address label
+    lw $a1, 0($t7)          # fetch the value of y coordinate
+    la $t7, current_piece_x     # fetch address label
+    lw $a0, 0($t7)          # fetch value of x coordinate
+    
+    la $t2, current_orient   # fetch address label
+    lw $t3, 0($t2)          # fetch value of the orientation
+    
+    beq $t3, 0, s_rotate_90 # rotate 90 degrees if s in default orientation 
+	beq $t3, 90, s_rotate_180 # rotate 180 degrees from default orientation if i has been rotated 90 degrees
+	beq $t3, 180, s_rotate_270 # rotate 270 degrees from default orientation if i has been rotated 180 degrees 
+	beq $t3, 270, s_rotate_0 # rotate to default orientation if i has been rotated 270 degrees
+    
+    s_rotate_90:
+    la $t6, s_rotate_90  # load address into $t7
+    
+    # check if theres anything occupying where we want to draw:
+    addi $a1, $a1, 1 # remember to delete after as we are changing the x and y arguments to the drawing function
+    
+    addi $a0, $a0, 1
+    addi $a3, $zero, 0
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)  
+    
+    addi $a1, $a1, 1 # remember to delete after as we are changing the x and y arguments to the drawing function
+    addi $a3, $zero, 0
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp) 
+    
+    la $t6, current_orient  
+	lw $t4, 0($t6)  
+	add $t4, $t4, 90 
+	sw $t4, 0($t6) # load in the new orientation
+	addi $a1, $a1, -2
+	addi $a0, $a0, -1
+	
+	j rotation
+	
+	s_rotate_180:
+    la $t6, s_rotate_180  # load address into $t7
+    
+    # check if theres anything occupying where we want to draw:
+    addi $a1, $a1, 1 # remember to delete after as we are changing the x and y arguments to the drawing function
+    
+    addi $a1, $a1, 1
+    addi $a3, $zero, 0 # height
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)  
+    
+    addi $a0, $a0, -1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)  
+    
+    la $t6, current_orient  
+	lw $t4, 0($t6)  
+	add $t4, $t4, 90 
+	sw $t4, 0($t6) # load in the new orientation
+	addi $a1, $a1, -1
+	addi $a0, $a0, 1
+	
+	j rotation
+	
+	s_rotate_270:
+    la $t6, s_rotate_270  # load address into $t7
+    
+    addi $a0, $a0, -1
+    addi $a3, $zero, 0 # height
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)  
+    
+    addi $a1, $a1, -1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)
+    
+    la $t6, current_orient  
+	lw $t4, 0($t6)  
+	add $t4, $t4, 90 
+	sw $t4, 0($t6) # load in the new orientation1
+	
+	j rotation
+	
+	s_rotate_0:
+	la $t6, s_rotate_0  # load address into $t7
+	
+	addi $a0, $a0, 1
+	addi $a3, $zero, 0 # height
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)  
+    
+    addi $a0, $a0, 1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp) 
+    
+    la $t6, current_orient  
+	lw $t4, 0($t6)  
+	add $t4, $zero, $zero  
+	sw $t4, 0($t6) # load in the new orientation1
+	addi $a0, $a0, -1
+	
+	j rotation
     
     rotation:
     la $t7, current_piece_x
@@ -802,13 +957,13 @@ game_loop:
     la $t8, current_piece   # fetch address label
     lw $t8, 0($t8)          # fetch value to see which piece it is
     
-    beq  $t8, 0, check_i_A
-    beq $t8, 1, check_o
-    beq $t8, 2, check_s
-    beq $t8, 3, check_z
-    beq $t8, 4 check_l
-    beq $t8, 5, check_j
-    beq $t8, 6, check_t
+    beq $t8, 0, check_i_A
+    beq $t8, 1, check_o_A
+    beq $t8, 2, check_s_A
+    # beq $t8, 3, check_z_A
+    # beq $t8, 4 check_l_A
+    # beq $t8, 5, check_j_A
+    # beq $t8, 6, check_t_A
     
     check_i_A:
     addi $a0, $a0, -1  
@@ -840,6 +995,78 @@ game_loop:
     jal check_pixel_horizontal
     
     lw $ra, 0($sp)
+    
+    j shift_horizontal
+    
+    check_o_A:
+    addi $a0, $a0, -1  
+    
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+    
+    lw $ra, 0($sp)          # pop $ra
+    
+    # check for all the height
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    addi $a1, $a1, 1
+    jal check_pixel_horizontal
+    
+    lw $ra, 0($sp)  
+    
+    j shift_horizontal
+    
+    check_s_A:
+    addi $a0, $a0, -1 # move to the left
+    beq $t9, 0, horizontal_s_A          # cond1: branch if the current orientation is vertical
+    bne $t9, 180, vertical_s_A      # cond2: branch if the current orientation is horizontal
+
+    horizontal_s_A:
+    # check the top most pixel
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+    
+    
+    lw $ra, 0($sp)          # pop $ra
+    
+    addi $a0, $a0, -1   # add for the length
+    addi $a1, $a1, 1   # to check the bottom most pixel
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+
+    lw $ra, 0($sp)          # pop $ra
+    addi $a1, $a1, -1   # to go back to original coordinate
+    addi $a0, $a0, 1
+    j shift_horizontal
+    
+    vertical_s_A:
+    # check the top most pixel
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+
+    lw $ra, 0($sp)          # pop $ra
+    
+    # check the middle pixel
+    addi $a1, $a1, 1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+    lw $ra, 0($sp)          # pop $ra
+    
+    # check the last pixel
+    addi $a1, $a1, 1        # go down one more
+    addi $a0, $a0, 1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+
+    lw $ra, 0($sp)          # pop $ra
+    addi, $a1, $a1, -2
+    addi, $a0, $a0, -1
     
     j shift_horizontal
     
@@ -892,15 +1119,15 @@ game_loop:
     la $t8, current_piece   # fetch address label
     lw $t8, 0($t8)          # fetch value to see which piece it is
     
-    beq  $t8, 0, check_i
-    beq $t8, 1, check_o
-    beq $t8, 2, check_s
-    beq $t8, 3, check_z
-    beq $t8, 4 check_l
-    beq $t8, 5, check_j
-    beq $t8, 6, check_t
+    beq  $t8, 0, check_i_s
+    beq $t8, 1, check_o_s
+    beq $t8, 2, check_s_s
+    # beq $t8, 3, check_z_s
+    # beq $t8, 4 check_l_s
+    # beq $t8, 5, check_j_s
+    # beq $t8, 6, check_t_s
 
-    check_i:    
+    check_i_s:    
     # increment by one pixel down
     # $t9 stores the current orientation
     addi $a1, $a1, 1        
@@ -936,7 +1163,7 @@ game_loop:
     j shift_down
     
     
-    check_o:
+    check_o_s:
     addi $a1, $a1, 1  # CORRECT
     
     # - $a0 - x coordinate # you enter (x, y) of bottom most pixel current x
@@ -945,7 +1172,7 @@ game_loop:
     # check_pixel_down
     
     # checks pixel directly under
-    addi $a3, $zero, 2
+    addi $a3, $zero, 1
     addi $sp, $sp, -4       # make room in stack
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_down
@@ -962,38 +1189,72 @@ game_loop:
     
     j shift_down
     
-    check_s:
+    check_s_s:
     addi $a1, $a1, 1  # CORRECT
+    
+    beq $t9, 0, horizontal_s_s          # cond1: branch if the current orientation is vertical
+    bne $t9, 180, vertical_s_s      # cond2: branch if the current orientation is horizontal
     # - $a0 - x coordinate # you enter (x, y) of bottom most pixel current x
     # - $a1 - y coordinate  # you enter                             current y
     # - $a3 - height        # you enter
     # check_pixel_down
     
-    # checks pixel directly under
-    addi $a3, $zero, 2 # height
+    horizontal_s_s:
+    # checks pixel to the right 
+    addi $a0, $a0, 1
+    addi $a3, $zero, 0 # height
     addi $sp, $sp, -4       # make room in stack
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_down
     
     lw $ra, 0($sp)          # pop $ra
     
-    addi $a0, $a0, -1  # this checks the pixel to the left now
-    addi $a3, $zero, 2 # height
+    # check pixel in the middle
+    addi $a0, $a0, -1  
+    addi $a1, $a1, 1
+    addi $a3, $zero, 0 # height
     addi $sp, $sp, -4       # make room in stack
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_down
     
     lw $ra, 0($sp)          # pop $ra
     
-    addi $a0, $a0, 2  # this checks the pixel to the right now
-    addi $a3, $zero, 1  # height
+    # check pixel on the left
+    addi $a0, $a0, -1  
+    addi $a3, $zero, 0  # height
     addi $sp, $sp, -4       # make room in stack
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_down
     
     lw $ra, 0($sp)          # pop $ra
     
+    addi $a1, $a1, -1
+    addi $a0, $a0, 1    # keep arguments the same to redraw
     # if all good shift down
+    j shift_down
+    
+    vertical_s_s:
+    # check left most
+    addi $a1, $a1, 1 
+    addi $a3, $zero, 0 # height
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)          # pop $ra
+    
+    # check right most pixel
+    addi $a1, $a1, 1 
+    addi $a0, $a0, 1
+    addi $a3, $zero, 0 # height
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down
+    
+    lw $ra, 0($sp)          # pop $ra
+    addi $a1, $a1, -2
+    addi $a0, $a0, -1
+    
     j shift_down
     
     check_z:
@@ -1194,12 +1455,12 @@ game_loop:
     lw $t8, 0($t8)          # fetch value to see which piece it is
     
     beq  $t8, 0, check_i_D
-    beq $t8, 1, check_o
-    beq $t8, 2, check_s
-    beq $t8, 3, check_z
-    beq $t8, 4 check_l
-    beq $t8, 5, check_j
-    beq $t8, 6, check_t
+    beq $t8, 1, check_o_D
+    beq $t8, 2, check_s_D
+    # beq $t8, 3, check_z
+    # beq $t8, 4 check_l
+    # beq $t8, 5, check_j
+    # beq $t8, 6, check_t
     
     check_i_D:
     
@@ -1257,6 +1518,71 @@ game_loop:
     addi $a0, $a0, -3
     # finish checking and is fine
     j shift_horizontal
+    
+    check_o_D:
+    addi $a0, $a0, 1 
+    addi, $a0, $a0, 1 # for the length
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+    
+    lw $ra, 0($sp)          # pop $ra
+    addi $a0, $a0, -1
+    j shift_horizontal
+    
+    check_s_D:
+    addi $a0, $a0, 1 # move to the right
+    beq $t9, 0, horizontal_s_d          # cond1: branch if the current orientation is vertical
+    bne $t9, 180, vertical_s_d      # cond2: branch if the current orientation is horizontal
+
+    horizontal_s_d:
+    # check the first pixel
+    addi $a0, $a0, 1 # for the length (this will be deleted right after)
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+
+    lw $ra, 0($sp)          # pop $ra
+    
+    addi $a0, $a0, -1
+    addi $a1, $a1, -1   # to check the bottom
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+
+    lw $ra, 0($sp)          # pop $ra
+    addi $a1, $a1, 1   # to go back to original coordinate
+    j shift_horizontal
+    
+    vertical_s_d:
+    # check the top most pixel
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+
+    lw $ra, 0($sp)          # pop $ra
+    
+    # check the middle pixel
+    addi $a0, $a0, 1 # for the length (this will be deleted right after)
+    addi $a1, $a1, 1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+
+    lw $ra, 0($sp)          # pop $ra
+    
+    addi $a1, $a1, 1        # go down one more
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+
+    lw $ra, 0($sp)          # pop $ra
+    addi, $a1, $a1, -2
+    addi, $a0, $a0, -1
+    
+    j shift_horizontal
+    
+    
     
 # - $a0 - x coordinate 
 # - $a1 - y coordinate  
