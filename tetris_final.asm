@@ -166,10 +166,10 @@ inner_top:
 add $t3, $t1, $t2           # store the total offset of the starting pixel (relative to $t0)
 add $t3, $t0, $t3           # calculate the location of the starting pixel ($t0 + offset)
 
-la $t7, wall_colour     # fetch wall_colour label address
-lw $t4, 0($t7)          # load wall colour and store into $t4
+la $t7, wall_colour         # fetch wall_colour label address
+lw $t4, 0($t7)              # load wall colour and store into $t4
 
-sw $t4, 0($t3)              # paint the current unit on the first row yellow
+sw $t4, 0($t3)              # paint the current unit on the first row the wall_colour
 addi $t1, $t1, 4            # move horizontal offset to the right by one pixel
 beq $t1, $t5, inner_end     # break out of the line-drawing loop
 j inner_top                 # jump to the start of the inner loop
@@ -181,21 +181,7 @@ j outer_top                 # jump to the top of the outer loop
 outer_end:
 jr $ra                      # return to calling program
 
-# The code for drawing a horizontal line and grid
-# - $a0: the x coordinate of the starting point for this line.
-# - $a1: the y coordinate of the starting point for this line.
-# - $a2: the length of this line, measured in pixels
-# - $a3: the height of this line, measured in pixels
-# - $t0: the address of the first pixel (top left) in the bitmap
-# - $t1: the horizontal offset of the first pixel in the line.
-# - $t2: the vertical offset of the first pixel in the line.
-# - #t3: the location in bitmap memory of the current pixel to draw 
-# - $t4: the colour value to draw on the bitmap
-# - $t5: the bitmap location for the end of the horizontal line.
-# - $t6: the bitmap location for the end of the vertical line.
-# - $t7: stores the colour for the function
-# - $t8: Pixel shift amount
-
+# The same code for the drawing-rectangle function, with the same arguments. 
 draw_grid:
 sll $t2, $a1, 7         # convert vertical offset to pixels (by multiplying $a1 by 128, equivalent to logical left shifts)
 sll $t6, $a3, 7         # convert height of rectangle from pixels to rows of bytes (by multiplying $a3 by 128)
@@ -210,20 +196,20 @@ inner_top_grid:
 add $t3, $t1, $t2           # store the total offset of the starting pixel (relative to $t0)
 add $t3, $t0, $t3           # calculate the location of the starting pixel ($t0 + offset)
 
-la $t7, grid_colour     # fetch wall_colour label address
-lw $t4, 0($t7)          # load wall colour and store into $t4
+la $t7, grid_colour         # fetch grid_colour label address
+lw $t4, 0($t7)              # load grid_colour and store into $t4
 
-sw $t4, 0($t3)              # paint the current unit on the first row yellow
-addi $t1, $t1, 4            # move horizontal offset to the right by one pixel
+sw $t4, 0($t3)                  # paint the current unit on the first row the grid_colour
+addi $t1, $t1, 4                # move horizontal offset to the right by one pixel
 beq $t1, $t5, inner_end_grid     # break out of the line-drawing loop
 j inner_top_grid                # jump to the start of the inner loop
 inner_end_grid:
 
-addi $t2, $t2, 128          # move vertical offset down by one line
-beq $t2, $t6, outer_end_grid     # on last line, break out of the outer loop
+addi $t2, $t2, 128              # move vertical offset down by one line
+beq $t2, $t6, outer_end_grid    # on last line, break out of the outer loop
 j outer_top_grid                # jump to the top of the outer loop
 outer_end_grid:
-jr $ra                    # return to calling program
+jr $ra                          # return to calling program
 
 # The code for drawing a horizontal line
 # - $a0: the x coordinate of the starting point for this line.
@@ -257,9 +243,9 @@ draw_horizontal_line:
 # - $a3: the colour of the line
 
 draw_vertical_line:
-	sll $t1, $a0, 2         # convert horizontal offset to pixels (by multiplying $a0 by 4) x
-	sll $t2, $a1, 7         # convert vertical offset to pixels (by multiplying by 128) y
-    sll $t3, $a2, 7         # convert height of line from pixels to bytes (by multiplying $a2 by 128) height
+	sll $t1, $a0, 2         # convert horizontal offset to pixels (by multiplying $a0 by 4) 
+	sll $t2, $a1, 7         # convert vertical offset to pixels (by multiplying by 128) 
+    sll $t3, $a2, 7         # convert height of line from pixels to bytes (by multiplying $a2 by 128) 
     add $t3, $t2, $t3       # calculate value of $t1 for end of the vertical line.
     
     v_loop:
@@ -267,27 +253,27 @@ draw_vertical_line:
     add $t4, $t0, $t4       # calculate location of starting pixel $t0 + offset
     
     sw $a3, 0($t4)
-    addi $t2, $t2, 128            # move horizontal offset to the right by one pixel
+    addi $t2, $t2, 128            # move vertical offset by one pixel down
     
     beq $t2, $t3, v_loop_end     # break out of the line-drawing loop
     j v_loop                    # jump to the start of the inner loop
     v_loop_end:
     jr $ra
  
-# draw i piece
+# The code for drawing the piece I tetrominoe
 draw_i:
-    la $t1, current_orient      # fetch address
-    lw $t2, 0($t1)              # load the current x value into the argument
+    la $t1, current_orient          # fetch address
+    lw $t2, 0($t1)                  # load the current orientation value into the argument
     beq $t2, 90, draw_horizontal_i   # check the orientation if it's 90, then horizontal piece
     beq $t2, 270, draw_horizontal_i  # check the orientation if it's 270, then horizontal piece
     
-    # otherwise, i is default vertical piece
+    # otherwise, i is in the vertical orientation
     la $t1, current_piece_x # fetch address
     lw $a0, 0($t1)          # load the current x value into the argument
     la $t1, current_piece_y # fetch address
     lw $a1, 0($t1)          # load the current y value into the argument THIS AND ABOVE COPIED
     addi $a2, $zero, 4      # setting the height of the line
-    la $t1, i_colour
+    la $t1, i_colour        # fetch address for the colour
     lw $a3, 0($t1)
     
     jal draw_vertical_line
@@ -295,19 +281,18 @@ draw_i:
     j check_key
     
     draw_horizontal_i:
-    la $t1, current_piece_x # fetch address
-    lw $a0, 0($t1)          # load the current x value into the argument
-    la $t1, current_piece_y # fetch address
-    lw $a1, 0($t1)          # load the current y value into the argument
-    addi $a2, $zero, 4      # setting the length of the line
+    la $t1, current_piece_x     # fetch address
+    lw $a0, 0($t1)              # load the current x value into the argument
+    la $t1, current_piece_y     # fetch address
+    lw $a1, 0($t1)              # load the current y value into the argument
+    addi $a2, $zero, 4          # setting the length of the line
     la $t1, i_colour
     lw $a3, 0($t1)
     jal draw_horizontal_line
     j check_key
  
-    # jr $ra                      # return to calling program
 
-# draw o piece
+# The code for drawing the piece O tetrominoe
 draw_o:
     addi $a2, $zero, 2
     la $t1, o_colour
@@ -317,25 +302,22 @@ draw_o:
     addi $a0, $a0, 1
     jal draw_vertical_line
     j check_key
-    
-    # jr $ra
-    
+
+# The code for drawing the piece s tetrominoe
 draw_s:
-    la $t1, current_orient      # fetch address
-    lw $t2, 0($t1)              # load the current x value into the argument
-    beq $t2, 90, draw_vertical_s   # check the orientation if it's 90, then horizontal piece
-    beq $t2, 270, draw_vertical_s  # check the orientation if it's 270, then horizontal piece
+    la $t1, current_orient          # fetch address
+    lw $t2, 0($t1)                  # load the current orientation value into the argument
+    beq $t2, 90, draw_vertical_s   # check the orientation if it's 90, then vertical piece
+    beq $t2, 270, draw_vertical_s  # check the orientation if it's 270, then vertical piece
     
     la $t1, current_piece_x # fetch address
     lw $a0, 0($t1)          # load the current x value into the argument
     la $t1, current_piece_y # fetch address
-    lw $a1, 0($t1)    
-    addi $a2, $zero, 2 # the length
-    la $t1, s_colour    # the colour
+    lw $a1, 0($t1)          # load the current x value into the argument
+    addi $a2, $zero, 2      # the length
+    la $t1, s_colour        # the colour of the tetrominoe
     lw $a3, 0($t1)
     jal draw_horizontal_line
-    
-    # need to change x and y
     
     addi $a1, $a1, 1  # change the y
     addi $a0, $a0, -1 # change the x
@@ -363,7 +345,8 @@ draw_s:
     lw $a3, 0($t1)
     jal draw_vertical_line
     j check_key     # finish drawing check any input
-    
+ 
+# The code for drawing the piece z tetrominoe
 draw_z:
     la $t1, current_orient      # fetch address
     lw $t2, 0($t1)              # load the current x value into the argument
@@ -411,7 +394,7 @@ draw_z:
     
     j check_key
     
-# draw l piece 
+# The code for drawing the piece L tetrominoe
 draw_l:
     la $t1, current_orient      # fetch address
     lw $t2, 0($t1)              # load the current x value into the argument
@@ -481,18 +464,19 @@ draw_l:
     
     j check_key
         
-    
+# The code for drawing the piece J tetrominoe   
 draw_j:
     la $t1, current_orient      # fetch address
     lw $t2, 0($t1)              # load the current x value into the argument
     la $t1, current_piece_x # fetch address
     lw $a0, 0($t1)          # load the current x value into the argument
     la $t1, current_piece_y # fetch address
-    lw $a1, 0($t1)    
+    lw $a1, 0($t1) 
+    # check the orientation
     beq $t2, 0, draw_vertical_j1
     beq $t2, 90, draw_horizontal_j1
-    beq $t2, 180, draw_vertical_j2   # check the orientation if it's 90, then horizontal piece
-    beq $t2, 270, draw_horizontal_j2  # check the orientation if it's 270, then horizontal piece
+    beq $t2, 180, draw_vertical_j2
+    beq $t2, 270, draw_horizontal_j2  
     
     draw_vertical_j1:
     addi $a2, $zero, 3 # height
@@ -550,7 +534,8 @@ draw_j:
     jal draw_vertical_line
     
     j check_key 
-    
+
+# The code for drawing the piece T tetrominoe
 draw_t:
     la $t1, current_orient      # fetch address
     lw $t2, 0($t1)              # load the current x value into the argument
@@ -633,37 +618,33 @@ draw_t:
     addi $t2, $zero, 0        # make the piece 0 in .data
     sw $t2, 0($t1)          # update the current piece
     
-    # reset current orientation:
-    # la $t1, current_orient
-    # lw $t2, 0($t1)
-    # add $t2, $2, $zero
-    # sw $t2, 0($t1)
-    
+    # Pick random integer between 0-7, which are the different tetrominoe pieces
     li $v0, 42
     li $a0, 0
-    li $a1, 7 # 7
+    li $a1, 7 
     syscall
     
-    # addi $a0, $zero, 0
     lw $t0, ADDR_DSPL
     sw $a0, current_piece
     
+    # The starting piece
     beq $a0, 0, i_piece
     beq $a0, 1, o_piece
     beq $a0, 2, s_piece
     beq $a0, 3, z_piece
-    beq $a0, 4, l_piece   # make this 4 later
+    beq $a0, 4, l_piece   
     beq $a0, 5, j_piece
     beq $a0, 6, t_piece
     
+    # Arguments to draw the I tetrominoe
     i_piece:
-    # doesn't need to update current piece due to the reset in 310
     la $t1, current_piece_x # fetch address
     lw $a0, 0($t1)          # load the current x value into the argument
     la $t1, current_piece_y # fetch address
     lw $a1, 0($t1)          # load the current y value into the argument
     jal draw_i
     
+    # Arguments to draw the O tetrominoe
     o_piece:
     # updating current piece
     la $t1, current_piece   # fetch address
@@ -682,7 +663,8 @@ draw_t:
     jal draw_o
     
     lw $ra, 0($sp)          # pop $ra
-
+    
+    # Arguments to draw the S tetrominoe
     s_piece:
     # updating current piece
     la $t1, current_piece   # fetch address
@@ -702,6 +684,7 @@ draw_t:
     
     lw $ra, 0($sp)          # pop $ra
     
+    # Arguments to draw the Z tetrominoe
     z_piece:
     # updating current piece
     la $t1, current_piece   # fetch address
@@ -721,7 +704,7 @@ draw_t:
     
     lw $ra, 0($sp)          # pop $ra
 
-    
+    # Arguments to draw the L tetrominoe
     l_piece:
     la $t1, current_piece
     lw $t2, 0($t1)          # load the value
@@ -739,7 +722,8 @@ draw_t:
     jal draw_l              # draw grid then return here
     
     lw $ra, 0($sp)          # pop $ra
-    
+ 
+    # Arguments to draw the J tetrominoe
     j_piece:
     la $t1, current_piece
     lw $t2, 0($t1)          # load the value
@@ -758,6 +742,7 @@ draw_t:
     
     lw $ra, 0($sp)          # pop $ra
 
+    # Arguments to draw the T tetrominoe
     t_piece:
     la $t1, current_piece
     lw $t2, 0($t1)          # load the value
@@ -775,14 +760,6 @@ draw_t:
     jal draw_t              # draw grid then return here
     
     lw $ra, 0($sp)          # pop $ra
-    
-    
-    # # update the tetromino's orientation value in .data 
-	# la $t7, i_orientation  # load address into $t7
-	# lw $t4, 0($t7)  
-	# addi $t4, $t4, 90 # rotate 90 degrees
-	# sw $t4, 0($t7) # Update new orientation
-    
 
     # 1a. Check if key has been pressed
     check_key:
@@ -840,6 +817,7 @@ draw_t:
     la $t1, current_piece   # fetch address label
     lw $t2, 0($t1)          # fetch value to see which piece it is
     
+    # Which piece is rotating
     beq $t2, 0, check_i_W
     beq $t2, 1, check_o_W
     beq $t2, 2, check_S_W
@@ -874,7 +852,7 @@ draw_t:
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_down
     
-    lw $ra, 0($sp)          # pop $
+    lw $ra, 0($sp)          # pop $ra
     
     # one left
     addi $a0, $a0, -1
@@ -882,7 +860,7 @@ draw_t:
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_down
     
-    lw $ra, 0($sp)          # pop $
+    lw $ra, 0($sp)          # pop $ra
     
     # one left
     addi $a0, $a0, -1
@@ -890,7 +868,7 @@ draw_t:
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_down
     
-    lw $ra, 0($sp)          # pop $
+    lw $ra, 0($sp)          # pop $ra
     
     # one left
     addi $a0, $a0, -1
@@ -898,16 +876,19 @@ draw_t:
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_down
     
-    lw $ra, 0($sp)          # pop $
+    lw $ra, 0($sp)          # pop $ra
+    
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
 
-    
     la $t6, current_orient  
 	lw $t4, 0($t6)  
 	addi $t4, $t4, 90 
 	sw $t4, 0($t6) # load in the new orientation
 	addi $a1, $a1, 2 # down 2
     
-    j rotation 
+    j rotation # Draw the rotation
     
     i_rotate_180:
     la $t6, i_rotate_180  # load address into $t7
@@ -922,9 +903,9 @@ draw_t:
     
     lw $ra, 0($sp)          # pop $
     
-    # check the second pixel to the left
+    # There is space to rotate
     
-    # check the pixel to the left of the current
+    # Change coordinates to draw rotation
     
     la $t6, current_orient  
 	lw $t4, 0($t6)  
@@ -973,6 +954,9 @@ draw_t:
     
     lw $ra, 0($sp)          # pop $
     
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
 
     
     la $t6, current_orient  
@@ -984,7 +968,6 @@ draw_t:
     j rotation 
     
     i_rotate_0:
-    # check if theres 3 pixels free on the bottom
     la $t6, i_rotate_0  # load address into $t7
     
     # check if there is a pixel on the bottom
@@ -997,6 +980,7 @@ draw_t:
     
     lw $ra, 0($sp)          # pop $
     
+    # check the next pixel
     addi $a3, $a3, 0
     addi $a1, $a1, 1
     addi $sp, $sp, -4       # make room in stack
@@ -1005,9 +989,9 @@ draw_t:
     
     lw $ra, 0($sp)  
     
-    # check the second pixel to the left
+    # There is space to rotate
     
-    # check the pixel to the left of the current
+    # Change coordinates to draw rotation
     
     la $t6, current_orient  
 	lw $t4, 0($t6)  
@@ -1030,9 +1014,9 @@ draw_t:
     lw $t3, 0($t2)          # fetch value of the orientation
     
     beq $t3, 0, s_rotate_90 # rotate 90 degrees if s in default orientation 
-	beq $t3, 90, s_rotate_180 # rotate 180 degrees from default orientation if i has been rotated 90 degrees
-	beq $t3, 180, s_rotate_270 # rotate 270 degrees from default orientation if i has been rotated 180 degrees 
-	beq $t3, 270, s_rotate_0 # rotate to default orientation if i has been rotated 270 degrees
+	beq $t3, 90, s_rotate_180 # rotate 180 degrees from default orientation if s has been rotated 90 degrees
+	beq $t3, 180, s_rotate_270 # rotate 270 degrees from default orientation if s has been rotated 180 degrees 
+	beq $t3, 270, s_rotate_0 # rotate to default orientation if s has been rotated 270 degrees
     
     s_rotate_90:
     la $t6, s_rotate_90  # load address into $t7
@@ -1063,6 +1047,10 @@ draw_t:
 	addi $a1, $a1, -2
 	addi $a0, $a0, -1
 	
+	# There is space to rotate
+    
+    # Change coordinates to draw rotation
+	
 	j rotation
 	
 	s_rotate_180:
@@ -1084,7 +1072,11 @@ draw_t:
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_down
     
-    lw $ra, 0($sp)  
+    lw $ra, 0($sp) 
+    
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
     
     la $t6, current_orient  
 	lw $t4, 0($t6)  
@@ -1113,6 +1105,10 @@ draw_t:
     
     lw $ra, 0($sp)
     
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
+    
     la $t6, current_orient  
 	lw $t4, 0($t6)  
 	addi $t4, $t4, 90 
@@ -1137,6 +1133,10 @@ draw_t:
     jal check_pixel_down
     
     lw $ra, 0($sp) 
+    
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
     
     la $t6, current_orient  
 	lw $t4, 0($t6)  
@@ -1179,6 +1179,10 @@ draw_t:
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_down
     
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
+    
     lw $ra, 0($sp) 
     la $t6, current_orient  
 	lw $t4, 0($t6)  
@@ -1220,6 +1224,10 @@ draw_t:
 	addi $a1, $a1, -1
 	addi $a0, $a0, -1
 	
+	# There is space to rotate
+    
+    # Change coordinates to draw rotation
+	
 	j rotation
 	
 	z_rotate_270:
@@ -1239,6 +1247,10 @@ draw_t:
     addi $sp, $sp, -4       # make room in stack
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_down
+    
+	# There is space to rotate
+    
+    # Change coordinates to draw rotation
     
     lw $ra, 0($sp) 
     la $t6, current_orient  
@@ -1268,6 +1280,10 @@ draw_t:
     
     lw $ra, 0($sp)
     
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
+    
     la $t6, current_orient  
 	lw $t4, 0($t6)  
 	add $t4, $zero, $zero  
@@ -1286,10 +1302,10 @@ draw_t:
     la $t2, current_orient   # fetch address label
     lw $t3, 0($t2)          # fetch value of the orientation
     
-    beq $t3, 0, l_rotate_90 # rotate 90 degrees if s in default orientation 
-	beq $t3, 90, l_rotate_180 # rotate 180 degrees from default orientation if i has been rotated 90 degrees
-	beq $t3, 180, l_rotate_270 # rotate 270 degrees from default orientation if i has been rotated 180 degrees 
-	beq $t3, 270, l_rotate_0 # rotate to default orientation if i has been rotated 270 degrees
+    beq $t3, 0, l_rotate_90 # rotate 90 degrees if l in default orientation 
+	beq $t3, 90, l_rotate_180 # rotate 180 degrees from default orientation if l has been rotated 90 degrees
+	beq $t3, 180, l_rotate_270 # rotate 270 degrees from default orientation if l has been rotated 180 degrees 
+	beq $t3, 270, l_rotate_0 # rotate to default orientation if l has been rotated 270 degrees
 	
 	l_rotate_90:
 	la $t6, l_rotate_90  # load address into $t7
@@ -1321,6 +1337,10 @@ draw_t:
     jal check_pixel_down
     
     lw $ra, 0($sp)
+    
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
     
     la $t6, current_orient  
 	lw $t4, 0($t6)  
@@ -1358,6 +1378,10 @@ draw_t:
     
     lw $ra, 0($sp)
     
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
+    
     la $t6, current_orient  
 	lw $t4, 0($t6)  
 	add $t4, $t4, 90  
@@ -1391,6 +1415,10 @@ draw_t:
     jal check_pixel_down
     
     lw $ra, 0($sp)
+
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
     
     la $t6, current_orient  
 	lw $t4, 0($t6)  
@@ -1427,6 +1455,10 @@ draw_t:
     jal check_pixel_down
     
     lw $ra, 0($sp)
+    
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
     
     la $t6, current_orient  
 	lw $t4, 0($t6)  
@@ -1477,6 +1509,10 @@ draw_t:
     jal check_pixel_down
     
     lw $ra, 0($sp)
+    
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
     
     # change back the coordinates and store
     la $t6, current_orient  
@@ -1561,6 +1597,10 @@ draw_t:
     
     lw $ra, 0($sp)
     
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
+    
     la $t6, current_orient  
 	lw $t4, 0($t6)  
 	add $t4, $t4, 90  
@@ -1600,6 +1640,10 @@ draw_t:
     
     lw $ra, 0($sp)
     
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
+    
     #store
     la $t6, current_orient  
 	lw $t4, 0($t6)  
@@ -1617,10 +1661,10 @@ draw_t:
     la $t2, current_orient   # fetch address label
     lw $t3, 0($t2)          # fetch value of the orientation
     
-    beq $t3, 0, t_rotate_90 # rotate 90 degrees if s in default orientation 
-	beq $t3, 90, t_rotate_180 # rotate 180 degrees from default orientation if i has been rotated 90 degrees
-	beq $t3, 180, t_rotate_270 # rotate 270 degrees from default orientation if i has been rotated 180 degrees 
-	beq $t3, 270, t_rotate_0 # rotate to default orientation if i has been rotated 270 degrees
+    beq $t3, 0, t_rotate_90 # rotate 90 degrees if w in default orientation 
+	beq $t3, 90, t_rotate_180 # rotate 180 degrees from default orientation if w has been rotated 90 degrees
+	beq $t3, 180, t_rotate_270 # rotate 270 degrees from default orientation if w has been rotated 180 degrees 
+	beq $t3, 270, t_rotate_0 # rotate to default orientation if w has been rotated 270 degrees
 	
 	t_rotate_90:
 	la $t6, t_rotate_90
@@ -1633,6 +1677,10 @@ draw_t:
     jal check_pixel_down
     
     lw $ra, 0($sp)
+    
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
     
     #store
     la $t6, current_orient  # current orientation is 90
@@ -1653,6 +1701,10 @@ draw_t:
     jal check_pixel_down
     
     lw $ra, 0($sp)
+    
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
     
     # change starting coordinate to draw
     la $t6, current_orient  
@@ -1699,6 +1751,10 @@ draw_t:
     
     lw $ra, 0($sp)
     
+    # There is space to rotate
+    
+    # Change coordinates to draw rotation
+    
     # change coordinates to draw
     la $t6, current_orient  
 	lw $t4, 0($t6)  
@@ -1708,6 +1764,8 @@ draw_t:
     
     j rotation
     
+    
+    # Function that draws the rotation tetrominoe
     rotation:
     la $t7, current_piece_x
     sw $a0, 0($t7) # update
@@ -1726,11 +1784,6 @@ draw_t:
     j keyboard_input
     
     
-    
-	
-	
-	
-    
     respond_to_A:
 
     lw $t0, ADDR_DSPL # reset display address
@@ -1744,7 +1797,7 @@ draw_t:
     addi $sp, $sp, -4       # make room in stack
     sw $ra, 0($sp)          # push $ra
     
-    # jal draw_grid           # draw grid, then after it will return back here
+    # draw grid, then after it will return back here
     jal load_background
     
     lw $ra, 0($sp)          # pop $ra
@@ -1768,6 +1821,7 @@ draw_t:
     beq $t8, 5, check_j_A
     beq $t8, 6, check_t_A
     
+    # Check piece I shift left
     check_i_A:
     addi $a0, $a0, -1  
     
@@ -1801,6 +1855,7 @@ draw_t:
     
     j shift_horizontal
     
+    # Check piece o shift left
     check_o_A:
     addi $a0, $a0, -1  
     
@@ -1820,6 +1875,7 @@ draw_t:
     
     j shift_horizontal
     
+    # Check piece s shift left
     check_s_A:
     addi $a0, $a0, -1 # move to the left
     beq $t9, 0, horizontal_s_A          # cond1: branch if the current orientation is vertical
@@ -1872,7 +1928,8 @@ draw_t:
     addi, $a0, $a0, -1
     
     j shift_horizontal
-    
+
+    # Check piece z shift left
     check_z_A:
     addi $a0, $a0, -1 # move to the right
     beq $t9, 0, horizontal_z_A          # cond1: branch if the current orientation is vertical
@@ -1924,7 +1981,8 @@ draw_t:
     addi, $a1, $a1, -2
     
     j shift_horizontal
-    
+
+    # Check piece l shift left
     check_l_A:
     addi $a0, $a0, -1     
     beq $t9, 0, vertical_l1_a          # cond1: branch if the current orientation is vertical
@@ -2030,7 +2088,8 @@ draw_t:
     addi $a1, $a1, 1
     
     j shift_horizontal
-    
+
+    # Check piece j shift left
     check_j_A:
     addi $a0, $a0, -1     
     beq $t9, 0, vertical_j1_a          # cond1: branch if the current orientation is vertical
@@ -2140,7 +2199,8 @@ draw_t:
     addi $a1, $a1, 1
     
     j shift_horizontal
-    
+
+    # Check piece t shift left
     check_t_A:
     addi $a0, $a0, -1
     beq $t9, 0, t1_a          # cond1: branch if the current orientation is vertical
@@ -2252,6 +2312,7 @@ draw_t:
     addi $a1, $a1, -2
     j shift_horizontal
     
+    # Code to shift left and right
     shift_horizontal:
     sw $a0, 0($t7) 
     la $t3, current_piece_y  # updating the new location
@@ -2259,11 +2320,6 @@ draw_t:
     la $t8, current_piece 
     lw $t8, 0($t8)
     
-    # # sw $a0, 0($t7) # store new x coordinate in memory
-    # # # la $t3, current_piece_y  # updating the new location
-    # # # lw $a1, 0($t3)  
-    # la $t8, current_piece
-    # lw $t8, 0($t8)
     beq  $t8, 0, draw_i
     beq $t8, 1, draw_o
     beq $t8, 2, draw_s
@@ -2399,12 +2455,8 @@ draw_t:
     check_s_s:
     addi $a1, $a1, 1  # CORRECT
     
-    beq $t9, 0, horizontal_s_s          # cond1: branch if the current orientation is vertical
-    bne $t9, 180, vertical_s_s      # cond2: branch if the current orientation is horizontal
-    # - $a0 - x coordinate # you enter (x, y) of bottom most pixel current x
-    # - $a1 - y coordinate  # you enter                             current y
-    # - $a3 - height        # you enter
-    # check_pixel_down
+    beq $t9, 0, horizontal_s_s          # cond1: branch if the current orientation is horizontal
+    bne $t9, 180, vertical_s_s      # cond2: branch if the current orientation is vertical
     
     horizontal_s_s:
     # checks pixel to the right 
@@ -2710,6 +2762,7 @@ draw_t:
     
     lw $ra, 0($sp)          # pop $ra
     
+    # change coordinates of where to draw
     addi $a0, $a0, 2
     
     j shift_down
@@ -2733,6 +2786,7 @@ draw_t:
     
     lw $ra, 0($sp)          # pop $ra
     
+    # change coordinates of where to draw
     addi $a1, $a1, -2
     j shift_down
     
@@ -2764,6 +2818,7 @@ draw_t:
     
     lw $ra, 0($sp)          # pop $ra
     
+    # change coordinates of where to draw
     addi $a0, $a0, 2
     j shift_down
     
@@ -2802,7 +2857,8 @@ draw_t:
     
     lw $ra, 0($sp)          # pop $ra
     addi $a0, $a0, 1
-    
+
+    # change coordinates of where to draw
     j shift_down
     
     t2_s:
@@ -2826,7 +2882,8 @@ draw_t:
     
     addi $a0, $a0, 1
     addi $a1, $a1, -1
-    
+
+    # change coordinates of where to draw
     j shift_down
     
     t3_s:
@@ -2858,7 +2915,8 @@ draw_t:
     #change coordinates back
     addi $a0, $a0, -1
     addi $a1, $a1, -1
-    
+
+    # change coordinates of where to draw
     j shift_down
     
     t4_s:
@@ -3484,11 +3542,11 @@ check_z_D:
     addi $a1, $a1, -2
     
     j shift_horizontal
-    
+ 
+# Checks whether the colour under the given given pixel coordinate is black or not for collisions
 # - $a0 - x coordinate 
 # - $a1 - y coordinate  
 # - $a3 - height
-# Checks whether the colour under the given given pixel coordinate is black or not for collisions
  check_pixel_down:
     add $t2, $a1, $a3        # for the height of the tetromino, add the current y to the height
     sll $t3, $t2, 7         # multiply by 128 to get the offset of the y coordinate
@@ -3502,10 +3560,10 @@ check_z_D:
     bne $t8, $t5, stay_current_location # if the pixel is not black, stay at current location
     
     jr $ra
-    
+
+# Checks whether the colour to left or right, by adjusting register, of the given given pixel coordinate is black or not for 
 # - $a0 - x coordinate 
 # - $a1 - y coordinate  
-# Checks whether the colour to left or right, by adjusting register, of the given given pixel coordinate is black or not for 
 check_pixel_horizontal:
     sll $t2, $a0, 2         # multiply by 4 to get the offset
     add $t3, $t2, $t0       # add the top left corner plus the offset to get the address of the new shifted pixel
@@ -3521,10 +3579,12 @@ check_pixel_horizontal:
     bne $t6, $t4, stay_current_location # if the pixel is not black, do not shift the right
     jr $ra
 
+# Same code as above, but links to the line checking
+
+# Checks whether the colour under the given given pixel coordinate is black or not for collisions
 # - $a0 - x coordinate 
 # - $a1 - y coordinate  
 # - $a3 - height
-# Checks whether the colour under the given given pixel coordinate is black or not for collisions
 check_pixel_down_s:
     add $t2, $a1, $a3       # for the height of the tetromino, add the current y to the height
     sll $t3, $t2, 7         # multiply by 128 to get the offset of the y coordinate
@@ -3538,10 +3598,11 @@ check_pixel_down_s:
     bne $t8, $t5, stay_current_location_S # if the pixel is not black, stay at current location
     
     jr $ra
-    
+
+
+# Checks whether the colour to left or right, by adjusting register, of the given given pixel coordinate is black or not for 
 # - $a0 - x coordinate 
 # - $a1 - y coordinate  
-# Checks whether the colour to left or right, by adjusting register, of the given given pixel coordinate is black or not for 
 check_pixel_horizontal_S:
     sll $t2, $a0, 2         # multiply by 4 to get the offset
     add $t3, $t2, $t0       # add the top left corner plus the offset to get the address of the new shifted pixel
@@ -3917,6 +3978,7 @@ draw_t_s:
     
     j lines_checker
 
+# Checking if there's been a line to erase
 
 lines_checker:
     lw $t0, ADDR_DSPL
@@ -3995,6 +4057,8 @@ jal load_background
 
 add $t9, $zero, $zero
 
+# Blinking to erase
+
 blinking:
 lw $t1, cleared_lines_len
 la $t2, cleared_lines
@@ -4057,6 +4121,8 @@ li $a0, 100
 syscall
 
 j blinking
+
+# Code to remove the line
 
 line_remover:
     lw $t9, 0($sp)          # FIRST EMPTY LINE
@@ -4148,6 +4214,8 @@ line_remover:
     line_remover_bottom:
     
     j add_to_back
+
+# Add pieces to the background
 
 add_to_back:
     jal save_background
