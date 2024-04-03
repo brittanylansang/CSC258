@@ -1190,8 +1190,32 @@ game_loop:
     jal check_pixel_down_s
     
     lw $ra, 0($sp)          # pop $ra
+    
+    addi $a3, $zero, 0      # height
+    addi $a0, $a0, 1        # x to the right 1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down_s
+    
+    lw $ra, 0($sp)          # pop $ra
+    
+    addi $a3, $zero, 0 # height
+    addi $a0, $a0, 1        # x to the right 1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down_s
+    
+    lw $ra, 0($sp)          # pop $ra
+    
+    addi $a3, $zero, 0 # height
+    addi $a0, $a0, 1        # x to the right 1
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_down_s
+    
+    lw $ra, 0($sp)          # pop $ra
 
-     
+    addi $a0, $a0, -3        # x to the right 1
     # finish checking and is fine
     j shift_down
     
@@ -1490,10 +1514,10 @@ game_loop:
     beq  $t8, 0, check_i_D
     beq $t8, 1, check_o_D
     beq $t8, 2, check_s_D
-    # beq $t8, 3, check_z
-    # beq $t8, 4 check_l
-    # beq $t8, 5, check_j
-    # beq $t8, 6, check_t
+    # beq $t8, 3, check_z_D
+    # beq $t8, 4 check_l_D
+    # beq $t8, 5, check_j_D
+    # beq $t8, 6, check_t_D
     
     check_i_D:
            
@@ -1655,7 +1679,7 @@ check_pixel_horizontal:
 # - $a3 - height
 # Checks whether the colour under the given given pixel coordinate is black or not for collisions
 check_pixel_down_s:
-    add $t2, $a1, $a3        # for the height of the tetromino, add the current y to the height
+    add $t2, $a1, $a3       # for the height of the tetromino, add the current y to the height
     sll $t3, $t2, 7         # multiply by 128 to get the offset of the y coordinate
     add $t4, $t3, $t0       # add the top left corner plus the offset to get the address of the new y shifted
     sll $t3, $a0, 2         # multiply by 4 to get the offset of the x coordinate
