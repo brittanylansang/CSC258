@@ -86,6 +86,8 @@ cleared_lines:
     .space 16
 cleared_lines_len:
     .word 0
+seconds:
+    .word 0
 
 ##############################################################################
 # Code
@@ -763,12 +765,21 @@ draw_t:
 
     # 1a. Check if key has been pressed
     check_key:
-    # jal play_song
-    # MUSIC ABOVE AND BELOW
-    # syscall
+    lw $t9, seconds
+    bne $t9, 5, skip_song
+    
+    jal play_song
+    syscall
+    
+    addi $t9, $zero, -1
+    
+    skip_song:
     li $v0, 32
     li $a0, 25
     syscall
+    
+    addi $t9, $t9, 1
+    sw $t9, seconds
     
     lw $t1, ADDR_KBRD               # $t0 = base address for keyboard
     lw $t2, 0($t1)                  # load first word from keyboard
@@ -1767,6 +1778,32 @@ draw_t:
     
     # Function that draws the rotation tetrominoe
     rotation:
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a0, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a1, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a2, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a3, 0($sp)          # push the $t1 register onto the stack.
+    
+    # Plays moving sound effect
+    li $v0, 31      # async play note syscall
+    li $a0, 60      # midi pitch
+    li $a1, 100     # duration
+    li $a2, 112     # instrument
+    li $a3, 25      # volume
+    syscall
+    
+    lw $a3, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a2, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a1, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a0, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    
     la $t7, current_piece_x
     sw $a0, 0($t7) # update
     la $t7, current_piece_y
@@ -1823,8 +1860,16 @@ draw_t:
     
     # Check piece I shift left
     check_i_A:
-    addi $a0, $a0, -1  
+    beq $t9, 0, vertical_i_A          # cond1: branch if the current orientation is vertical
+    bne $t9, 180, horizontal_i_A      # cond2: branch if the current orientation is horizontal 
     
+    # pass in bottom most x, y
+    # x stays the same
+    # change 
+    # y stays the same
+    vertical_i_A:
+    # check all pixels to the right
+    addi $a0, $a0, -1  
     addi $sp, $sp, -4       # make room in stack
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_horizontal
@@ -1853,6 +1898,18 @@ draw_t:
     
     lw $ra, 0($sp)
     
+    j shift_horizontal
+    
+    horizontal_i_A:
+    
+    addi $a0, $a0, -1 
+    addi $sp, $sp, -4       # make room in stack
+    sw $ra, 0($sp)          # push $ra
+    jal check_pixel_horizontal
+    
+    lw $ra, 0($sp)          # pop $ra
+
+    # finish checking and is fine
     j shift_horizontal
     
     # Check piece o shift left
@@ -2314,6 +2371,32 @@ draw_t:
     
     # Code to shift left and right
     shift_horizontal:
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a0, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a1, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a2, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a3, 0($sp)          # push the $t1 register onto the stack.
+    
+    # Plays moving sound effect
+    li $v0, 31      # async play note syscall
+    li $a0, 60      # midi pitch
+    li $a1, 100     # duration
+    li $a2, 112     # instrument
+    li $a3, 25      # volume
+    syscall
+    
+    lw $a3, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a2, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a1, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a0, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    
     sw $a0, 0($t7) 
     la $t3, current_piece_y  # updating the new location
     lw $a1, 0($t3)  
@@ -2944,6 +3027,34 @@ draw_t:
     j shift_down
     
     shift_down:
+    
+    # CODE TO PLAY SOUND EFFECT - TOO ANNOYING BUT WORKS!
+    # addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    # sw $a0, 0($sp)          # push the $t1 register onto the stack.
+    # addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    # sw $a1, 0($sp)          # push the $t1 register onto the stack.
+    # addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    # sw $a2, 0($sp)          # push the $t1 register onto the stack.
+    # addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    # sw $a3, 0($sp)          # push the $t1 register onto the stack.
+    
+    # # Plays moving sound effect
+    # li $v0, 31      # async play note syscall
+    # li $a0, 60      # midi pitch
+    # li $a1, 100     # duration
+    # li $a2, 112     # instrument
+    # li $a3, 25      # volume
+    # syscall
+    
+    # lw $a3, 0($sp)          # pop the $t1 register value from the stack.
+    # addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    # lw $a2, 0($sp)          # pop the $t1 register value from the stack.
+    # addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    # lw $a1, 0($sp)          # pop the $t1 register value from the stack.
+    # addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    # lw $a0, 0($sp)          # pop the $t1 register value from the stack.
+    # addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    
     sw $a1, 0($t7) # store new y coordinate in memory 
     la $t3, current_piece_x
     lw $a0, 0($t3)
@@ -2959,7 +3070,33 @@ draw_t:
     j keyboard_input
     
     stay_current_location:
-    # sw $a1, 0($t7)
+    
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a0, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a1, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a2, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a3, 0($sp)          # push the $t1 register onto the stack.
+    
+    # Plays thud sound effect
+    li $v0, 31      # async play note syscall
+    li $a0, 60      # midi pitch
+    li $a1, 100     # duration
+    li $a2, 127     # instrument
+    li $a3, 75      # volume
+    syscall
+    
+    lw $a3, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a2, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a1, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a0, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    
     la $t8, current_piece_x
     lw $a0, 0($t8)
     la $t8, current_piece_y
@@ -2982,6 +3119,7 @@ draw_t:
     j game_loop
     
     respond_to_D:
+    
     lw $t0, ADDR_DSPL # reset display address
     # redraw grid (same arguments passed from initialization)
     
@@ -3615,7 +3753,32 @@ check_pixel_horizontal_S:
     jr $ra
     
 stay_current_location_S:
-    # sw $a1, 0($t7)
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a0, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a1, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a2, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a3, 0($sp)          # push the $t1 register onto the stack.
+    
+    # Plays thud sound effect
+    li $v0, 31      # async play note syscall
+    li $a0, 60      # midi pitch
+    li $a1, 100     # duration
+    li $a2, 127     # instrument
+    li $a3, 75      # volume
+    syscall
+    
+    lw $a3, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a2, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a1, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a0, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    
     la $t8, current_piece_x
     lw $a0, 0($t8)
     la $t8, current_piece_y
@@ -4145,6 +4308,32 @@ line_remover:
     bne $t3, $t0, shift_row
     
     remove_full_row:
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a0, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a1, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a2, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $a3, 0($sp)          # push the $t1 register onto the stack.
+    
+    # Plays clear line sound effect
+    li $v0, 31      # async play note syscall
+    li $a0, 90      # midi pitch
+    li $a1, 100     # duration
+    li $a2, 104     # instrument
+    li $a3, 100      # volume
+    syscall
+    
+    lw $a3, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a2, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a1, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $a0, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    
     add $a1, $zero, $t0
     
     addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
@@ -4325,7 +4514,7 @@ play_song:
     add $a0, $zero, $t8    # midi pitch
     li $a1, 500  # duration
     li $a2, 0     # instrument
-    li $a3, 100   # volume
+    li $a3, 75  # volume
     
     # Incriments shift to four more (next midi)
     addi $t7, $t7, 4
