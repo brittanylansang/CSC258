@@ -1496,8 +1496,7 @@ game_loop:
     # beq $t8, 6, check_t
     
     check_i_D:
-    
-    addi $a1, $a1, 1        
+           
     beq $t9, 0, vertical_i_d          # cond1: branch if the current orientation is vertical
     bne $t9, 180, horizontal_i_d      # cond2: branch if the current orientation is horizontal 
     
@@ -1578,7 +1577,7 @@ game_loop:
     lw $ra, 0($sp)          # pop $ra
     
     addi $a0, $a0, -1
-    addi $a1, $a1, -1   # to check the bottom
+    addi $a1, $a1, 1   # to check the bottom
     addi $sp, $sp, -4       # make room in stack
     sw $ra, 0($sp)          # push $ra
     jal check_pixel_horizontal
@@ -1639,6 +1638,10 @@ game_loop:
 check_pixel_horizontal:
     sll $t2, $a0, 2         # multiply by 4 to get the offset
     add $t3, $t2, $t0       # add the top left corner plus the offset to get the address of the new shifted pixel
+    
+    sll $t2, $a1, 7
+    add $t3, $t3, $t2
+    
     lw $t4, 0($t3)          # get the colour of the pixel at that location
     
     la $t5, grid_colour     # fetch the address label
