@@ -57,6 +57,10 @@ times:
     .word 0 262 248 0 247 0 249 0 251 252 0 254 0 259 0 270 248 0 247 0 249 0 249 246 0 247 0 250 0 264 248 0 247 0 249 0 249 246 0 247 250 0 264 248 0 247 249 0 249 246 0 247 0 250 264 248 0 247 249 0 249 0 246 247 250 0 264 0 248 0 247 249 249 246 0 247 0 250 264 248 0 247 0 249 0 249 246 247 0 250 0 264 248 0 247 249 0 249 246 0 247 250 0 264 248 247 250 0 264 248 247 249 0 249 246 247 250 0 264 248 247 249 0 249 246 247 250 0 264 248 247 249 0 249 246 247 250 0 264 248 247 249 0 249 246 247 250 0 264 248 247 249 0 249 246 247 250 0 264 248 247 249 0 249 246 247 250 0 264 248 0 247 249 0 249 246 247 250 0 264 248 247 249 249 246 247
 time_shift:
     .word 0
+cleared_lines:
+    .space 16
+cleared_lines_len:
+    .word 0
 
 ##############################################################################
 # Code
@@ -720,8 +724,207 @@ piece_drop:
     
     jal draw_tetromino
     
-    j game_loop
+    j lines_checker
 
+lines_checker:
+    lw $t0, ADDR_DSPL
+    addi $t3, $zero, 30 # starting y cord
+    add $t1, $zero, $zero # Full rows
+    la $t2, cleared_lines
+    
+    lines_checker_top:
+    add $a0, $t3, $zero
+    jal line_check
+    
+    beq $v0, 0, lines_checker_end # EMPTY LINE
+    beq $v0, 2, semi_clear
+    
+    sw $t3, 0($t2)          # push the $ra register onto the stack.
+    addi $t2, $t2, 4
+    addi $t1, $t1, 1
+    
+    semi_clear:
+    subi $t3, $t3, 1
+    j lines_checker_top
+    
+    lines_checker_end:
+    
+    sw $t1, cleared_lines_len
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $t3, 0($sp)          # push the $t1 register onto the stack.
+    
+    beq $t1, 0, game_loop
+    j pre_blinking
+
+line_check:
+    add $t9, $zero, $zero
+    sll $t9, $a0, 7 # Multiply y by 128
+    addi $t9, $t9, 4 # Skips first pixel (Wall)
+    
+    add $t8, $zero, $zero # Iteration
+    add $t7, $zero, $zero # Num of empty
+    lw $t6, ADDR_DSPL
+    add $t6, $t6, $t9
+    
+    line_check_top:
+    lw $t5 0($t6)
+    bne $t5, 0x0, next_pixel
+    addi $t7, $t7, 1
+    
+    next_pixel:
+    addi $t8, $t8, 1
+    beq $t8, 10, line_check_bottom
+    
+    addi $t6, $t6, 4
+    
+    j line_check_top
+    
+    line_check_bottom:
+    
+    beq $t7, 10, all_clear
+    beq $t7, 0, full_line
+    
+    # Not fully empty but not full line
+    addi $v0, $zero, 2
+    jr $ra
+    
+    all_clear:
+    addi $v0, $zero, 0
+    jr $ra
+    
+    full_line:
+    addi $v0, $zero, 1
+    jr $ra
+
+pre_blinking:
+add $t9, $zero, $zero
+
+blinking:
+lw $t1, cleared_lines_len
+la $t2, cleared_lines
+
+addi $a0, $zero, 1     # set x coordinate of line to 0
+addi $a2, $zero, 10     # set length of line to 31
+addi $a3, $zero, 1      # set height of line to 1
+
+blinking_top:
+beq $t1, 0, blinking_bot
+
+lw $t3, 0($t2)
+
+add $a1, $t3, $zero     # set y coordinate of line to 31
+
+addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+sw $t1, 0($sp)          # push the $t1 register onto the stack.
+addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+sw $t2, 0($sp)          # push the $t1 register onto the stack.
+addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+sw $t3, 0($sp)          # push the $t1 register onto the stack.
+addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+sw $t9, 0($sp)          # push the $t1 register onto the stack.
+
+jal draw_rectangle      # call the rectangle-drawing function
+
+lw $t9, 0($sp)          # pop the $t1 register value from the stack.
+addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+lw $t3, 0($sp)          # pop the $t1 register value from the stack.
+addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+lw $t2, 0($sp)          # pop the $t1 register value from the stack.
+addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+lw $t1, 0($sp)          # pop the $t1 register value from the stack.
+addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+
+addi $t3, $t3, 4
+subi $t1, $t1, 1
+j blinking_top
+
+blinking_bot:
+
+li $v0, 32
+li $a0, 100
+syscall
+
+addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+sw $t9, 0($sp)          # push the $t1 register onto the stack.
+
+jal load_background
+
+lw $t9, 0($sp)          # pop the $t1 register value from the stack.
+addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+
+beq $t9, 3, line_remover
+
+addi $t9, $t9, 1
+
+li $v0, 32
+li $a0, 100
+syscall
+
+j blinking
+
+line_remover:
+    lw $t9, 0($sp)          # FIRST EMPTY LINE
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    
+    addi $t0, $zero, 30     # CURRENT LINE
+    add $t1, $zero, $zero   # NUMBER OF LINES TO SHIFT DOWN
+    la $t2, cleared_lines
+    lw $t3, cleared_lines_len
+    
+    sll $t3, $t3, 2
+    add $t2, $t2, $t3
+    
+    addi $a0, $zero, 1     # set x coordinate of line to 0
+    addi $a2, $zero, 10     # set length of line to 31
+    addi $a3, $zero, 1      # set height of line to 1
+    
+    line_remover_top:
+    beq $t9, $t0, line_remover_bottom
+    
+    lw $t3 0($t2)
+    beq $t3, $t0, line_remover_bottom
+    
+    remove_full_row:
+    add $a1, $zero, $t0
+    
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $t0, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $t1, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $t2, 0($sp)          # push the $t1 register onto the stack.
+    addi $sp, $sp, -4       # move the stack pointer to an empty location in memory
+    sw $t9, 0($sp)          # push the $t1 register onto the stack.
+    
+    lw $t0, ADDR_DSPL
+    jal draw_rectangle      # call the rectangle-drawing function
+    
+    lw $t9, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $t2, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $t1, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    lw $t0, 0($sp)          # pop the $t1 register value from the stack.
+    addi $sp, $sp, 4        # move the stack pointer to the current top of the stack.
+    
+    subi, $t2, $t2, 4
+    
+    j end_line_remove
+    
+    shift_row:
+    
+    j end_line_remove
+    
+    end_line_remove:
+    subi, $t9, $t9, 1
+    
+    j line_remover_top
+    
+    line_remover_bottom:
+    
+    jal save_background
+    j game_loop
 
 #draw I piece
     # la $t7, current_i_x  # Load the piece_I_x label's address into $t7
